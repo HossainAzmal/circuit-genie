@@ -1,5 +1,5 @@
 export type Lang = "arduino" | "micropython";
-export type Board = { id: string; name: string; family: string; mcu: string; lang: Lang; fqbn?: string };
+export type Board = { id: string; name: string; family: string; mcu: string; lang: Lang; fqbn?: string | undefined };
 
 const a = (id: string, name: string, family: string, mcu: string, fqbn?: string): Board => ({ id, name, family, mcu, lang: "arduino", fqbn });
 const m = (id: string, name: string, family: string, mcu: string): Board => ({ id, name, family, mcu, lang: "micropython" });

@@ -14,7 +14,7 @@ export const askAI = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }) => {
     if (data.provider === "lovable") {
-      const key = process.env.LOVABLE_API_KEY;
+      const key = process.env["LOVABLE_API_KEY"];
       if (!key) return { error: "Built-in AI is not configured." };
       const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
         method: "POST",
@@ -57,7 +57,7 @@ export const askAI = createServerFn({ method: "POST" })
     }
 
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (data.apiKey) headers.Authorization = `Bearer ${data.apiKey}`;
+    if (data.apiKey) headers["Authorization"] = `Bearer ${data.apiKey}`;
     const res = await fetch(`${data.base.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers,
