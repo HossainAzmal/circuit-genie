@@ -29,8 +29,8 @@ const ACTIONS = [
 ] as const;
 
 function IDE() {
-  const [board, setBoard] = useState<Board>(BOARDS[0]);
-  const [code, setCode] = useState(starter(BOARDS[0]));
+  const [board, setBoard] = useState<Board>(BOARDS[0]!);
+  const [code, setCode] = useState(starter(BOARDS[0]!));
   const [q, setQ] = useState("");
   const [providerId, setProviderId] = useState("lovable");
   const [keys, setKeys] = useState<Record<string, string>>({});
@@ -78,7 +78,7 @@ function IDE() {
       setAnswer(text);
       if (action === "generate" || action === "fix") {
         const m = text.match(/```[a-zA-Z+]*\n([\s\S]*?)```/);
-        if (m) setCode(m[1]);
+        if (m?.[1]) setCode(m[1]);
       }
     } catch (e) { setAnswer("⚠ " + (e as Error).message); } finally { setBusy(false); }
   }
