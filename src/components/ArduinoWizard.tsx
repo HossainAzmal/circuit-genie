@@ -15,9 +15,19 @@ function Cmd({ c }: { c: string }) {
   );
 }
 
-export function ArduinoWizard({ board, libs, connected, onClose, log }: { board: Board; libs: string[]; connected: boolean; onClose: () => void; log: (s: string) => void }) {
+function save(name: string, text: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+export function ArduinoWizard({ board, libs, code, serialLog, clearLog, connected, onClose, log }: { board: Board; libs: string[]; code: string; serialLog: string; clearLog: () => void; connected: boolean; onClose: () => void; log: (s: string) => void }) {
   const [pct, setPct] = useState<number | null>(null);
   const [err, setErr] = useState("");
+  const [built, setBuilt] = useState("");
+  const [line, setLine] = useState("");
+  const monRef = useRef<HTMLPreElement>(null);
+  useEffect(() => { monRef.current?.scrollTo(0, 1e9); }, [serialLog]);
   const fqbn = board.fqbn ?? "";
   const core = fqbn.split(":").slice(0, 2).join(":");
   const profile = serial.flashProfile(fqbn);
@@ -25,28 +35,43 @@ export function ArduinoWizard({ board, libs, connected, onClose, log }: { board:
   const needsUrl = core.startsWith("esp32") ? "https://espressif.github.io/arduino-esp32/package_esp32_index.json"
     : core.startsWith("esp8266") ? "https://arduino.esp8266.com/stable/package_esp8266com_index.json"
     : core.startsWith("rp2040") ? "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json" : "";
+  const libCmd = extLibs.length ? `arduino-cli lib install ${extLibs.map((l) => `"${cliLib(l)}"`).join(" ")}` : "";
+  const setupCmds = [
+    needsUrl && `arduino-cli config add board_manager.additional_urls ${needsUrl}`,
+    "arduino-cli core update-index", `arduino-cli core install ${core}`, libCmd,
+  ].filter(Boolean) as string[];
 
-  async function flash(f: File) {
-    setErr(""); setPct(0);
-    try {
-      if (!connected) throw new Error("Connect the board with Connect USB first.");
-      const hex = serial.parseHex(await f.text());
-      log(`\n[flashing ${f.name} — ${hex.length} bytes]\n`);
-      await serial.flashHex(hex, profile!, setPct);
-      log("\n[✓ upload complete — board restarted]\n");
-    } catch (e) { const m = serial.explainSerialError(e); setErr(m); log(`\n[!] ${m}\n`); setPct(null); }
+  function downloadInstaller(os: "win" | "unix") {
+    if (os === "win") {
+      save("install-board-support.bat", ["@echo off", "echo Installing Arduino CLI, board support and libraries for " + board.name,
+        "where arduino-cli >nul 2>nul || winget install -e --id ArduinoSA.CLI --accept-source-agreements --accept-package-agreements",
+        "echo Installing USB drivers (CH340 / CP210x) if needed...",
+        "winget install -e --id WCH.CH341SER --accept-source-agreements --accept-package-agreements 2>nul",
+        "arduino-cli config init 2>nul", ...setupCmds, "echo Done! You can close this window.", "pause"].join("\r\n"));
+    } else {
+      save("install-board-support.sh", ["#!/bin/sh", "set -e", `echo "Installing board support for ${board.name}"`,
+        'if ! command -v arduino-cli >/dev/null; then',
+        '  if command -v brew >/dev/null; then brew install arduino-cli; else curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=$HOME/.local/bin sh; export PATH=$HOME/.local/bin:$PATH; fi',
+        "fi", "arduino-cli config init 2>/dev/null || true", ...setupCmds,
+        '[ "$(uname)" = Linux ] && sudo usermod -aG dialout "$USER" && echo "Log out and back in for USB access."',
+        'echo "Done!"'].join("\n") + "\n");
+    }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-3">
-      <div className="w-full max-w-xl max-h-[90vh] overflow-auto rounded border border-border bg-card p-4 space-y-3 text-xs">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold">Arduino upload — {board.name}</h2>
-          <button onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></button>
-        </div>
-        <p className="text-muted-foreground">C++ sketches must be compiled once on your computer (browsers can't run the compiler). Then the website uploads the result over USB.</p>
+  function buildCommand() {
+    const ino = code.replace(/'/g, "'\\''");
+    const unix = [
+      "mkdir -p sketch", `cat > sketch/sketch.ino <<'EOF'\n${code}\nEOF`, ...setupCmds,
+      `arduino-cli compile --fqbn ${fqbn} --output-dir build sketch`,
+      `arduino-cli upload -p $(arduino-cli board list | awk 'NR==2{print $1}') --fqbn ${fqbn} sketch`,
+    ].join(" && \\\n");
+    void ino;
+    setBuilt(unix);
+  }
 
-        <ol className="space-y-3 list-decimal pl-4">
+  async function sendMon() {
+    try { await serial.sendLine(line); setLine(""); } catch (e) { setErr(serial.explainSerialError(e)); }
+  }
           <li><b>Install Arduino CLI</b> (one time)
             <div className="mt-1 space-y-1">
               <Cmd c="winget install ArduinoSA.CLI" /><Cmd c="brew install arduino-cli" />
