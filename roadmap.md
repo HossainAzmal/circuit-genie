@@ -1,0 +1,4 @@
+- [x] Guided Arduino CLI workflow + in-browser .hex upload (Uno/Nano/Mega/Pro Mini)
+- [x] AI diagnose from serial output + code
+- [x] Clear USB permission / unsupported browser / disconnect messages
+- [x] Auto-install selected libraries (generated in one CLI command; browser can't install software itself)
