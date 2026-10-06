@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Copy, FileUp, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Copy, Download, FileUp, Terminal, X } from "lucide-react";
 import type { Board } from "@/lib/boards";
 import * as serial from "@/lib/serial";
 
@@ -72,17 +72,34 @@ export function ArduinoWizard({ board, libs, code, serialLog, clearLog, connecte
   async function sendMon() {
     try { await serial.sendLine(line); setLine(""); } catch (e) { setErr(serial.explainSerialError(e)); }
   }
-          <li><b>Install Arduino CLI</b> (one time)
-            <div className="mt-1 space-y-1">
-              <Cmd c="winget install ArduinoSA.CLI" /><Cmd c="brew install arduino-cli" />
-              <Cmd c="curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh" />
-            </div></li>
-          <li><b>Install board core{extLibs.length ? " + your libraries" : ""}</b>
-            <div className="mt-1 space-y-1">
-              {needsUrl && <Cmd c={`arduino-cli config add board_manager.additional_urls ${needsUrl}`} />}
-              <Cmd c={`arduino-cli core update-index && arduino-cli core install ${core}`} />
-              {extLibs.length > 0 && <Cmd c={`arduino-cli lib install ${extLibs.map((l) => `"${cliLib(l)}"`).join(" ")}`} />}
-            </div></li>
+
+  async function flash(f: File) {
+    setErr(""); setPct(0);
+    try {
+      if (!connected) throw new Error("Connect the board with Connect USB first.");
+      const hex = serial.parseHex(await f.text());
+      log(`\n[flashing ${f.name} — ${hex.length} bytes]\n`);
+      await serial.flashHex(hex, profile!, setPct);
+      log("\n[✓ upload complete — board restarted]\n");
+    } catch (e) { const m = serial.explainSerialError(e); setErr(m); log(`\n[!] ${m}\n`); setPct(null); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-3">
+      <div className="w-full max-w-xl max-h-[90vh] overflow-auto rounded border border-border bg-card p-4 space-y-3 text-xs">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold">Arduino upload — {board.name}</h2>
+          <button onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></button>
+        </div>
+        <p className="text-muted-foreground">C++ sketches must be compiled once on your computer (browsers can't run the compiler). Then the website uploads the result over USB.</p>
+
+        <ol className="space-y-3 list-decimal pl-4">
+          <li><b>Install board support automatically</b> (one time) — download and double-click/run. It installs Arduino CLI, USB drivers, the {board.name} core{extLibs.length ? " and your libraries" : ""}.
+            <div className="mt-1 flex flex-wrap gap-1">
+              <button className="cf-btn-primary" onClick={() => downloadInstaller("win")}><Download className="h-4 w-4" />Windows installer</button>
+              <button className="cf-btn-primary" onClick={() => downloadInstaller("unix")}><Download className="h-4 w-4" />Mac / Linux installer</button>
+            </div>
+            <p className="mt-1 text-muted-foreground">Mac/Linux: run <code>sh install-board-support.sh</code> in Terminal.</p></li>
           <li><b>Save the sketch</b> — press Download, put <code>sketch.ino</code> in a folder named <code>sketch</code>.</li>
           <li><b>Compile</b>
             <div className="mt-1"><Cmd c={`arduino-cli compile --fqbn ${fqbn} --output-dir build sketch`} /></div></li>
@@ -106,6 +123,25 @@ export function ArduinoWizard({ board, libs, code, serialLog, clearLog, connecte
               </div>
             )}</li>
         </ol>
+
+        <div className="space-y-2 border-t border-border pt-3">
+          <b>Build the Arduino CLI command</b>
+          <p className="text-muted-foreground">One command that saves your current code, installs the board + libraries, compiles and uploads (Mac/Linux terminal).</p>
+          <button className="cf-btn-primary w-fit" onClick={buildCommand}><Terminal className="h-4 w-4" />Build command</button>
+          {built && <Cmd c={built} />}
+        </div>
+
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="flex items-center justify-between">
+            <b>Serial monitor {connected ? <span className="text-primary">● live</span> : <span className="text-muted-foreground">(not connected)</span>}</b>
+            <button className="text-muted-foreground hover:text-primary" onClick={clearLog}>Clear</button>
+          </div>
+          <pre ref={monRef} className="h-40 overflow-auto rounded border border-border bg-background p-2 text-[11px] whitespace-pre-wrap">{serialLog || "Board output will appear here after upload…"}</pre>
+          <div className="flex gap-1">
+            <input className="cf-input flex-1" value={line} onChange={(e) => setLine(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMon()} placeholder="Send text to board" disabled={!connected} />
+            <button className="cf-btn-primary" onClick={sendMon} disabled={!connected}>Send</button>
+          </div>
+        </div>
       </div>
     </div>
   );
