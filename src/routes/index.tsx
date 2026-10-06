@@ -6,6 +6,7 @@ import { BOARDS, LIBRARIES, starter, type Board } from "@/lib/boards";
 import { PROVIDERS } from "@/lib/providers";
 import { askAI } from "@/lib/ai.functions";
 import * as serial from "@/lib/serial";
+import { ArduinoWizard } from "@/components/ArduinoWizard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -138,6 +139,13 @@ function IDE() {
           <button className="cf-btn" onClick={download}><Download className="h-4 w-4" /></button>
         </div>
       </header>
+      {connMsg && (
+        <div role="alert" className="flex items-start justify-between gap-3 border-b border-destructive bg-destructive/10 px-4 py-2 text-xs text-destructive">
+          <span>⚠ {connMsg}</span>
+          <button onClick={() => setConnMsg("")} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+      {wizard && <ArduinoWizard board={board} libs={libs} connected={connected} log={out} onClose={() => setWizard(false)} />}
 
       <div className="grid gap-px bg-border lg:grid-cols-[260px_1fr_380px]">
         <aside className="bg-card p-3 space-y-3 lg:h-[calc(100vh-57px)] overflow-auto">
@@ -174,7 +182,10 @@ function IDE() {
           <textarea spellCheck={false} value={code} onChange={(e) => setCode(e.target.value)}
             className="flex-1 min-h-[45vh] resize-none bg-background p-4 text-sm leading-6 outline-none" />
           <div className="border-t border-border">
-            <div className="flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground"><Plug className="h-3 w-3" />Serial monitor</div>
+            <div className="flex items-center justify-between gap-2 px-3 py-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-2"><Plug className="h-3 w-3" />Serial monitor</span>
+              <button disabled={busy} className="cf-btn py-0.5" onClick={diagnose}><Bug className="h-3 w-3" />AI diagnose output</button>
+            </div>
             <pre ref={logRef} className="h-40 overflow-auto bg-card px-3 py-2 text-xs text-accent whitespace-pre-wrap">{log || "Plug in your board with a USB cable and press Connect USB."}</pre>
             <input className="cf-input w-full rounded-none border-x-0" placeholder="Send to board… (Enter)"
               onKeyDown={async (e) => { if (e.key === "Enter" && connected) { await serial.sendLine(e.currentTarget.value); e.currentTarget.value = ""; } }} />
