@@ -67,6 +67,19 @@ export const LIBRARIES = [
   "Keypad", "RTClib", "SD", "TFT_eSPI", "U8g2", "MPU6050", "Adafruit_BMP280", "HC-SR04 (NewPing)",
   "Blynk", "Firebase ESP32", "microbit (MicroPython)", "machine (MicroPython)", "neopixel (MicroPython)",
   "radio (micro:bit)", "music (micro:bit)", "speech (micro:bit)", "network (MicroPython)",
+  "Ethernet", "WiFiNINA", "WiFiS3", "ArduinoBLE", "NimBLE-Arduino", "ESPAsyncWebServer", "AsyncTCP", "WebSockets",
+  "ArduinoOTA", "ESPmDNS", "Preferences", "SPIFFS", "LittleFS", "Arduino_JSON", "ThingSpeak", "UniversalTelegramBot",
+  "Adafruit_Sensor", "Adafruit_BME280", "Adafruit_BMP085", "Adafruit_MPU6050", "Adafruit_ADXL345", "Adafruit_INA219",
+  "Adafruit_PWMServoDriver", "Adafruit_MotorShield", "Adafruit_ST7735", "Adafruit_ILI9341", "Adafruit_SH110X",
+  "Adafruit_TCS34725", "Adafruit_VL53L0X", "Adafruit_MCP23017", "Adafruit_ADS1X15", "Adafruit_GPS", "Adafruit_Fingerprint",
+  "Adafruit_LEDBackpack", "Adafruit_DotStar", "MAX30105", "MAX6675", "HX711", "BH1750", "SHT31", "DS3231",
+  "TM1637Display", "MD_Parola", "MD_MAX72XX", "LedControl", "LCDWIZARD", "TFT_ILI9163C", "MCUFRIEND_kbv", "lvgl",
+  "Encoder", "Bounce2", "OneButton", "TimerOne", "TaskScheduler", "FreeRTOS", "ArduinoLowPower", "LowPower",
+  "VirtualWire", "RadioHead", "RF24", "LoRa", "Arduino_LSM6DS3", "Arduino_LSM9DS1", "Arduino_APDS9960",
+  "Arduino_HTS221", "Arduino_LPS22HB", "TensorFlowLite", "DFRobotDFPlayerMini", "Talkie", "Tone", "ESP32Servo",
+  "ESP32-Camera", "Mouse", "Keyboard", "HID-Project", "CapacitiveSensor", "QTRSensors", "PID_v1", "SparkFun_BNO080",
+  "Ultrasonic", "Adafruit_CircuitPlayground", "ssd1306 (MicroPython)", "dht (MicroPython)", "urequests (MicroPython)",
+  "umqtt (MicroPython)", "bluetooth (MicroPython)", "onewire (MicroPython)", "ds18x20 (MicroPython)",
 ];
 
 export function starter(b: Board) {
