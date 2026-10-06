@@ -154,7 +154,7 @@ function IDE() {
           <button onClick={() => setConnMsg("")} aria-label="Dismiss">✕</button>
         </div>
       )}
-      {wizard && <ArduinoWizard board={board} libs={libs} connected={connected} log={out} onClose={() => setWizard(false)} />}
+      {wizard && <ArduinoWizard board={board} libs={libs} code={code} serialLog={log} clearLog={() => setLog("")} connected={connected} log={out} onClose={() => setWizard(false)} />}
 
       <div className="grid gap-px bg-border lg:grid-cols-[260px_1fr_380px]">
         <aside className="bg-card p-3 space-y-3 lg:h-[calc(100vh-57px)] overflow-auto">
