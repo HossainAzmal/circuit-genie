@@ -216,6 +216,7 @@ function IDE() {
             </div>
           )}
           <textarea className="cf-input w-full h-24 resize-none" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe your project…" />
+          <button disabled={busy} className="cf-btn-primary w-full justify-center" onClick={checkCompat}><Cpu className="h-4 w-4" />Check board & library compatibility</button>
           <div className="grid grid-cols-2 gap-2">
             {ACTIONS.map(({ id, label, icon: I }) => (
               <button key={id} disabled={busy} className="cf-btn justify-center" onClick={() => runAI(id)}><I className="h-4 w-4" />{label}</button>
