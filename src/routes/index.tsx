@@ -111,6 +111,15 @@ function IDE() {
     } else setWizard(true);
   }
 
+  async function checkCompat() {
+    setBusy(true); setAnswer("");
+    try {
+      const r = await ask({ data: { provider: "lovable", base: "", model: "", system: "You are an expert embedded engineer who reviews sketches for board and library compatibility.",
+        prompt: `Board: ${board.name} (MCU ${board.mcu}, ${board.fqbn ? "FQBN " + board.fqbn : "MicroPython"}). Selected libraries: ${libs.join(", ") || "none"}.\nCheck this code for compatibility problems with this board and these libraries: wrong pin numbers/names, unavailable peripherals (WiFi, BLE, DAC, ADC pins, PWM), voltage levels (3.3V vs 5V), memory/flash limits, AVR-only or ESP-only APIs, wrong language, missing or unsupported #include/imports, library architecture support.\nReply as: "Verdict: Compatible / Issues found", then a numbered list of issues each with the exact line and the specific change, then the corrected full code in one fenced block (only if changes are needed).\n\nCODE:\n${code}` } });
+      if ("error" in r && r.error) setAnswer("⚠ " + r.error); else setAnswer((r as { text: string }).text);
+    } catch (e) { setAnswer("⚠ " + (e as Error).message); } finally { setBusy(false); }
+  }
+
   async function diagnose() {
     setBusy(true); setAnswer("");
     try {
@@ -207,6 +216,7 @@ function IDE() {
             </div>
           )}
           <textarea className="cf-input w-full h-24 resize-none" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe your project…" />
+          <button disabled={busy} className="cf-btn-primary w-full justify-center" onClick={checkCompat}><Cpu className="h-4 w-4" />Check board & library compatibility</button>
           <div className="grid grid-cols-2 gap-2">
             {ACTIONS.map(({ id, label, icon: I }) => (
               <button key={id} disabled={busy} className="cf-btn justify-center" onClick={() => runAI(id)}><I className="h-4 w-4" />{label}</button>
