@@ -6,6 +6,7 @@ import { BOARDS, LIBRARIES, starter, type Board } from "@/lib/boards";
 import { PROVIDERS } from "@/lib/providers";
 import { askAI } from "@/lib/ai.functions";
 import * as serial from "@/lib/serial";
+import { ArduinoWizard } from "@/components/ArduinoWizard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,6 +43,9 @@ function IDE() {
   const [connected, setConnected] = useState(false);
   const [baud, setBaud] = useState(115200);
   const [libs, setLibs] = useState<string[]>([]);
+  const [connMsg, setConnMsg] = useState("");
+  const [wizard, setWizard] = useState(false);
+  useEffect(() => { if (!serial.serialSupported()) setConnMsg("This browser can't connect to USB boards. Use Chrome or Edge on a computer."); }, []);
   const logRef = useRef<HTMLPreElement>(null);
   const ask = useServerFn(askAI);
 
@@ -84,29 +88,36 @@ function IDE() {
   }
 
   async function doConnect() {
-    if (!serial.serialSupported()) { out("\n[!] USB (Web Serial) needs Chrome or Edge on a computer.\n"); return; }
+    if (!serial.serialSupported()) { setConnMsg("Your browser can't talk to USB boards. Open this site in Chrome or Edge on a Windows, Mac, Linux or ChromeOS computer (phones, Safari and Firefox are not supported)."); return; }
+    if (!serial.isSecure()) { setConnMsg("USB only works on a secure (https) page. Open the site using its https address."); return; }
     try {
       if (connected) { await serial.disconnect(); setConnected(false); out("\n[disconnected]\n"); return; }
-      await serial.connect(baud, out); setConnected(true); out(`\n[connected @ ${baud}]\n`);
-    } catch (e) { out(`\n[!] ${(e as Error).message}\n`); }
+      await serial.connect(baud, out, () => { setConnected(false); setConnMsg("Board disconnected. Check the USB cable, plug it back in and press Connect USB."); out("\n[!] board unplugged\n"); });
+      setConnected(true); setConnMsg(""); out(`\n[connected @ ${baud}]\n`);
+    } catch (e) { const m = serial.explainSerialError(e); setConnMsg(m); out(`\n[!] ${m}\n`); }
   }
 
   function download() {
-    const ext = board.lang === "arduino" ? "ino" : "py";
     const name = board.lang === "arduino" ? "sketch.ino" : "main.py";
     const blob = new Blob([code], { type: "text/plain" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name || `code.${ext}`; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
   }
 
   async function upload() {
     if (board.lang === "micropython") {
-      if (!connected) { out("\n[!] Connect the board over USB first.\n"); return; }
+      if (!connected) { setConnMsg("Connect the board over USB first (press Connect USB)."); return; }
       out("\n[uploading main.py…]\n");
-      try { await serial.uploadMicroPython(code); out("\n[✓ uploaded & running]\n"); } catch (e) { out(`\n[!] ${(e as Error).message}\n`); }
-    } else {
-      download();
-      out(`\n[sketch downloaded] C++ boards need compiling. With the free Arduino CLI run:\n  arduino-cli compile --fqbn ${board.fqbn} sketch && arduino-cli upload -p <PORT> --fqbn ${board.fqbn} sketch\n`);
-    }
+      try { await serial.uploadMicroPython(code); out("\n[✓ uploaded & running]\n"); } catch (e) { const m = serial.explainSerialError(e); setConnMsg(m); out(`\n[!] ${m}\n`); }
+    } else setWizard(true);
+  }
+
+  async function diagnose() {
+    setBusy(true); setAnswer("");
+    try {
+      const r = await ask({ data: { provider: "lovable", base: "", model: "", system: `You are an expert embedded debugger for ${board.name} (${board.mcu}), ${board.lang === "arduino" ? "Arduino C++" : "MicroPython"}.`,
+        prompt: `Diagnose the problem from this serial output and code. Give: 1) likely cause, 2) specific fixes with line references, 3) the corrected code in one fenced block.\n\nSERIAL OUTPUT:\n${log.slice(-6000) || "(empty)"}\n\nCODE:\n${code}` } });
+      if ("error" in r && r.error) setAnswer("⚠ " + r.error); else setAnswer((r as { text: string }).text);
+    } catch (e) { setAnswer("⚠ " + (e as Error).message); } finally { setBusy(false); }
   }
 
   return (
@@ -128,6 +139,13 @@ function IDE() {
           <button className="cf-btn" onClick={download}><Download className="h-4 w-4" /></button>
         </div>
       </header>
+      {connMsg && (
+        <div role="alert" className="flex items-start justify-between gap-3 border-b border-destructive bg-destructive/10 px-4 py-2 text-xs text-destructive">
+          <span>⚠ {connMsg}</span>
+          <button onClick={() => setConnMsg("")} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+      {wizard && <ArduinoWizard board={board} libs={libs} connected={connected} log={out} onClose={() => setWizard(false)} />}
 
       <div className="grid gap-px bg-border lg:grid-cols-[260px_1fr_380px]">
         <aside className="bg-card p-3 space-y-3 lg:h-[calc(100vh-57px)] overflow-auto">
@@ -164,7 +182,10 @@ function IDE() {
           <textarea spellCheck={false} value={code} onChange={(e) => setCode(e.target.value)}
             className="flex-1 min-h-[45vh] resize-none bg-background p-4 text-sm leading-6 outline-none" />
           <div className="border-t border-border">
-            <div className="flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground"><Plug className="h-3 w-3" />Serial monitor</div>
+            <div className="flex items-center justify-between gap-2 px-3 py-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-2"><Plug className="h-3 w-3" />Serial monitor</span>
+              <button disabled={busy} className="cf-btn py-0.5" onClick={diagnose}><Bug className="h-3 w-3" />AI diagnose output</button>
+            </div>
             <pre ref={logRef} className="h-40 overflow-auto bg-card px-3 py-2 text-xs text-accent whitespace-pre-wrap">{log || "Plug in your board with a USB cable and press Connect USB."}</pre>
             <input className="cf-input w-full rounded-none border-x-0" placeholder="Send to board… (Enter)"
               onKeyDown={async (e) => { if (e.key === "Enter" && connected) { await serial.sendLine(e.currentTarget.value); e.currentTarget.value = ""; } }} />
